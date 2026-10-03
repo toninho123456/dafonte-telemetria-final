@@ -1,0 +1,25 @@
+# Publicação no Render (Blueprint): site + banco PostgreSQL. Confira os planos/preços atuais no painel do Render.
+# O disco é necessário para as fotos dos tratores e exige plano pago.
+services:
+  - type: web
+    name: dafonte-telemetria
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    disk: { name: uploads, mountPath: /data, sizeGB: 1 }
+    envVars:
+      - { key: DATABASE_URL, fromDatabase: { name: dafonte-db, property: connectionString } }
+      - { key: AUTH_SECRET, generateValue: true }
+      - { key: AUTH_TRUST_HOST, value: "true" }
+      - { key: UPLOAD_DIR, value: /data/uploads }
+      - { key: APP_URL, sync: false }   # https://SEU-SITE.onrender.com (ou seu domínio)
+      - { key: AUTH_URL, sync: false }  # o mesmo endereço
+      - { key: SEED_ADMIN_EMAIL, sync: false }
+      - { key: SEED_ADMIN_PASSWORD, sync: false }
+      - { key: SMTP_HOST, sync: false }
+      - { key: SMTP_USER, sync: false }
+      - { key: SMTP_PASS, sync: false }
+      - { key: MAIL_FROM, sync: false }
+databases:
+  - name: dafonte-db
+    plan: basic-256mb

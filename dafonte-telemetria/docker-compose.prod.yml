@@ -1,0 +1,29 @@
+# Produção em um servidor (VPS) com HTTPS automático via Caddy.
+# Uso: crie o arquivo .env.prod (veja DEPLOY no README) e rode:
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment: { POSTGRES_USER: dafonte, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}", POSTGRES_DB: dafonte }
+    volumes: ["dbdata:/var/lib/postgresql/data"]
+  app:
+    build: .
+    restart: always
+    depends_on: [db]
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: "postgresql://dafonte:${POSTGRES_PASSWORD}@db:5432/dafonte"
+      APP_URL: "https://${DOMAIN}"
+      AUTH_URL: "https://${DOMAIN}"
+      AUTH_TRUST_HOST: "true"
+      UPLOAD_DIR: /data/uploads
+    volumes: ["uploads:/data/uploads"]
+  caddy:
+    image: caddy:2
+    restart: always
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment: { DOMAIN: "${DOMAIN}" }
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data"]
+volumes: { dbdata: {}, uploads: {}, caddy_data: {} }

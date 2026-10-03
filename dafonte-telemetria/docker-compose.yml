@@ -1,0 +1,8 @@
+# Banco local de desenvolvimento. Em produção use um PostgreSQL gerenciado com senha forte.
+services:
+  db:
+    image: postgres:16
+    environment: {POSTGRES_USER: dafonte, POSTGRES_PASSWORD: dafonte_dev, POSTGRES_DB: dafonte}
+    ports: ["5432:5432"]
+    volumes: ["dbdata:/var/lib/postgresql/data"]
+volumes: {dbdata: {}}
