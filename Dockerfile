@@ -3,7 +3,7 @@ RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /v
 WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm install
+RUN npm install --legacy-peer-deps
 COPY . .
 RUN npx prisma generate && npm run build
 ENV NODE_ENV=production
