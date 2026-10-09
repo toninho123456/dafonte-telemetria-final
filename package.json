@@ -8,7 +8,7 @@
   "db:migrate": "prisma migrate dev",
   "db:seed": "tsx prisma/seed.ts",
   "simular": "tsx scripts/simular.ts",
-  "start:deploy": "node scripts/prestart.mjs && npm start"
+  "start:deploy": "export APP_URL=\"${APP_URL:-$RENDER_EXTERNAL_URL}\" AUTH_URL=\"${AUTH_URL:-$RENDER_EXTERNAL_URL}\"; node scripts/prestart.mjs && npm start"
  },
  "prisma": {
   "seed": "tsx prisma/seed.ts"
