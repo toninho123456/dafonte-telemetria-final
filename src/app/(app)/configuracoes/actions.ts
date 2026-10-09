@@ -9,7 +9,7 @@ const o = (n: number) => z.string().trim().max(n).optional().transform((v) => v 
 export async function saveTenant(fd: FormData) {
   const u = await requireUser("tenant:write");
   if (!u.tenantId) throw new Error("Use uma conta de concessionária");
-  const p = z.object({ name: z.string().trim().min(2).max(80), city: o(80), state: o(40), phone: o(30), whatsapp: o(30), email: z.string().trim().email().max(120).optional().or(z.literal("")).transform((v) => v || null), address: o(160) }).safeParse(Object.fromEntries(fd));
+  const p = z.object({ name: z.string().trim().min(2).max(80), city: o(80), state: o(40), phone: o(30), whatsapp: o(30), email: z.string().trim().email().max(120).optional().or(z.literal("")).transform((v) => v || null), address: o(160) }).safeParse(Object.fromEntries(fd as unknown as Iterable<[string, string]>));
   if (!p.success) redirect(`/configuracoes?erro=${encodeURIComponent("Confira os campos (nome e e-mail válidos).")}`);
   await prisma.tenant.update({ where: { id: u.tenantId }, data: p.data! });
   await audit(u, "atualizou os dados da concessionária");
