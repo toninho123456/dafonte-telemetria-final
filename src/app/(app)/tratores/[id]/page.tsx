@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { tractorFor } from "@/lib/tractors";
 import TractorForm from "../TractorForm";
-import { TractorIcon } from "../page";
+import { TractorIcon } from "../TractorIcon";
 import { updateTractor, deleteTractor, uploadPhoto, removePhoto, setAccess, assignDevice } from "../actions";
 
 export default async function Page({ params, searchParams }: { params: { id: string }; searchParams: { erro?: string } }) {
