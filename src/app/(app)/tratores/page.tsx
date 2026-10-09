@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { visibleWhere } from "@/lib/tractors";
 
-const TractorIcon = () => (<svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="6.5" cy="16.5" r="3.5" /><circle cx="18" cy="18" r="2.2" /><path d="M10 16.5h5.8M3 13V7h5l2.5 5M8 7V4h4l1 3h3.5l1.5 7" /></svg>);
+   import { TractorIcon } from "./TractorIcon";
 
 export default async function Page({ searchParams }: { searchParams: { q?: string } }) {
   const u = (await auth())!.user, q = searchParams.q?.trim();
