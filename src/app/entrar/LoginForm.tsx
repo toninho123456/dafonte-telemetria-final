@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 export default function LoginForm({ error }: { error?: string }) {
-  const [msg, setMsg] = useState(error ? "Não foi possível entrar. Confira os dados ou peça acesso ao administrador da sua concessionária." : "");
+  const [msg, setMsg] = useState(error ? "Não foi possível entrar. Confira os dados, tente de novo ou crie uma conta." : "");
   const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault(); setBusy(true); setMsg("");
@@ -23,7 +23,7 @@ export default function LoginForm({ error }: { error?: string }) {
         {msg && <p role="alert" className="text-sm text-red-400">{msg}</p>}
         <button className="btn" disabled={busy}>ENTRAR</button>
       </form>
-      <div className="flex gap-4 text-sm text-zinc-400"><Link href="/esqueci-senha">Esqueci minha senha</Link><Link href="/cadastro">Cadastrar concessionária</Link></div>
+      <div className="flex gap-4 text-sm text-zinc-400"><Link href="/esqueci-senha">Esqueci minha senha</Link><Link href="/criar-conta">Criar conta</Link><Link href="/cadastro">Cadastrar concessionária</Link></div>
     </main>
   );
 }
