@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum Role {
+  PLATFORM_ADMIN
+  ADMIN
+  GESTOR
+  ANALISTA
+  OPERADOR
+}
+enum UserStatus {
+  ACTIVE
+  BLOCKED
+}
+// Cada concessionária é um "tenant". Toda tabela de negócio deve ter tenantId.
+model Tenant {
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  name         String
+  city         String?
+  state        String?
+  country      String     @default("BR")
+  logoUrl      String?
+  primaryColor String     @default("#f2b01e")
+  locale       String     @default("pt-BR")
+  timezone     String     @default("America/Fortaleza")
+  active       Boolean    @default(false) // só a plataforma aprova
+  createdAt    DateTime   @default(now())
+  users        User[]
+  invites      Invite[]
+  tractors     Tractor[]
+  devices      Device[]
+  audits       AuditLog[]
+  phone        String?
+  whatsapp     String?
+  email        String?
+  address      String?
+  geofences    Geofence[]
+  alerts       Alert[]
+}
+model User {
+  id           String        @id @default(cuid())
+  tenantId     String?
+  tenant       Tenant?       @relation(fields: [tenantId], references: [id])
+  email        String        @unique
+  name         String
+  passwordHash String?
+  phone        String?
+  jobTitle     String?
+  cityState    String?
+  photoUrl     String?
+  role         Role          @default(OPERADOR)
+  status       UserStatus    @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  resets       PasswordReset[]
+  access       TractorAccess[]
+  audits       AuditLog[]
+  @@index([tenantId])
+}
+model Invite {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email     String
+  role      Role
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+}
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id])
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  tractorId String?
+  ip        String?
+  createdAt DateTime @default(now())
+  @@index([tenantId, createdAt])
+}
+
+model Tractor {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  brand     String
+  model     String
+  year      Int?
+  serial    String?
+  hours     Float    @default(0)
+  farm      String?
+  operator  String?
+  notes     String?
+  photoPath String? // arquivo fora de /public; servido só por rota autenticada
+  createdAt DateTime @default(now())
+  device    Device?
+  access    TractorAccess[]
+  status    TractorStatus?
+  points    Telemetry[]
+  alerts    Alert[]
+  fenceStates GeofenceState[]
+  @@index([tenantId])
+}
+// deviceId e imei são únicos no mundo todo: a API de telemetria acha a concessionária e o trator a partir deles.
+model Device {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deviceId  String   @unique
+  imei      String?  @unique
+  tractorId String?  @unique // @unique = um trator só pode ter um dispositivo
+  tractor   Tractor? @relation(fields: [tractorId], references: [id], onDelete: SetNull)
+  keyHash   String? // SHA-256 da chave de API do dispositivo (a chave em si nunca é guardada)
+  lastSeenAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([tenantId])
+}
+// Quem (além do administrador) pode ver cada trator.
+model TractorAccess {
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tractorId String
+  tractor   Tractor @relation(fields: [tractorId], references: [id], onDelete: Cascade)
+  @@id([userId, tractorId])
+}
+
+// Estado atual de cada trator (uma linha por trator): o mapa lê daqui.
+model TractorStatus {
+  tractorId  String   @id
+  tractor    Tractor  @relation(fields: [tractorId], references: [id], onDelete: Cascade)
+  lat        Float
+  lng        Float
+  speed      Float
+  heading    Float?
+  engineOn   Boolean
+  rpm        Int?
+  fuelPct    Float?
+  coolantC   Float?
+  recordedAt DateTime // hora informada pelo dispositivo
+  receivedAt DateTime // hora em que o servidor recebeu (base do "sem sinal")
+}
+// Histórico de pontos (base do percurso, estatísticas e geofences das próximas etapas).
+model Telemetry {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tractorId  String
+  tractor    Tractor  @relation(fields: [tractorId], references: [id], onDelete: Cascade)
+  lat        Float
+  lng        Float
+  speed      Float
+  heading    Float?
+  engineOn   Boolean
+  rpm        Int?
+  fuelPct    Float?
+  coolantC   Float?
+  recordedAt DateTime
+  @@index([tractorId, recordedAt])
+  @@index([tenantId, recordedAt])
+}
+
+// Áreas desenhadas no mapa (polígono: lista de [lat, lng]).
+model Geofence {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  points    Json
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  states    GeofenceState[]
+  alerts    Alert[]
+  @@index([tenantId])
+}
+// Se o trator estava dentro ou fora da área no último ponto (para detectar entrada/saída).
+model GeofenceState {
+  geofenceId String
+  geofence   Geofence @relation(fields: [geofenceId], references: [id], onDelete: Cascade)
+  tractorId  String
+  tractor    Tractor  @relation(fields: [tractorId], references: [id], onDelete: Cascade)
+  inside     Boolean
+  @@id([geofenceId, tractorId])
+}
+model Alert {
+  id         String    @id @default(cuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tractorId  String
+  tractor    Tractor   @relation(fields: [tractorId], references: [id], onDelete: Cascade)
+  geofenceId String?
+  geofence   Geofence? @relation(fields: [geofenceId], references: [id], onDelete: SetNull)
+  kind       String // ENTER | EXIT
+  message    String
+  createdAt  DateTime  @default(now())
+  readAt     DateTime?
+  @@index([tenantId, createdAt])
+}
