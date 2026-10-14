@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { audit } from "@/lib/audit";
 import { tractorFor } from "@/lib/tractors";
 import TractorForm from "../TractorForm";
+import ClaimCode from "./ClaimCode";
 import { TractorIcon } from "../TractorIcon";
 import { updateTractor, deleteTractor, uploadPhoto, removePhoto, setAccess, assignDevice } from "../actions";
 
@@ -15,6 +16,8 @@ export default async function Page({ params, searchParams }: { params: { id: str
   await audit(u, `visualizou o trator ${t.name}`, { tractorId: t.id });
   const st = statusOf(t.status), canMap = u.role === "PLATFORM_ADMIN" || PERMS["map:view"].includes(u.role);
   const isAdmin = u.role === "ADMIN", basic = u.role === "OPERADOR";
+  const self = !!(u.tenantId && (await prisma.tenant.findUnique({ where: { id: u.tenantId }, select: { selfService: true } }))?.selfService);
+  const claimActive = !!t.claimHash && !!t.claimExpiresAt && t.claimExpiresAt > new Date();
   let users: { id: string; name: string; role: string }[] = [], granted = new Set<string>(), free: { id: string; deviceId: string }[] = [];
   if (isAdmin) {
     users = await prisma.user.findMany({ where: { tenantId: u.tenantId!, role: { not: "ADMIN" }, status: "ACTIVE" }, select: { id: true, name: true, role: true }, orderBy: { name: "asc" } });
@@ -40,6 +43,7 @@ export default async function Page({ params, searchParams }: { params: { id: str
           {t.photoPath && <form action={removePhoto.bind(null, t.id)} className="mt-2"><button className="btn-o text-red-400">Excluir foto</button></form>}</section>
         <section><h2 className="mb-2 font-bold">Dispositivo de telemetria</h2>
           <form action={assignDevice.bind(null, t.id)} className="flex flex-wrap gap-2"><select className="input max-w-xs" name="deviceId" defaultValue={t.device?.id ?? ""}><option value="">Sem dispositivo</option>{t.device && <option value={t.device.id}>{t.device.deviceId} (atual)</option>}{free.map((d) => <option key={d.id} value={d.id}>{d.deviceId}</option>)}</select><button className="btn-o">Salvar vínculo</button></form></section>
+        {!self && <section><h2 className="mb-2 font-bold">Código de ativação do cliente</h2><ClaimCode id={t.id} active={claimActive} /></section>}
         <section><h2 className="mb-2 font-bold">Quem pode ver este trator</h2>
           <form action={setAccess.bind(null, t.id)} className="grid gap-1 text-sm">{users.map((x) => <label key={x.id} className="flex gap-2"><input type="checkbox" name="userId" value={x.id} defaultChecked={granted.has(x.id)} />{x.name} <span className="text-zinc-500">({x.role})</span></label>)}{!users.length && <p className="text-zinc-400">Nenhum outro usuário na concessionária ainda.</p>}<button className="btn-o mt-2 w-fit">Salvar permissões</button></form></section>
       <section><h2 className="mb-2 font-bold">Editar dados</h2><TractorForm action={updateTractor.bind(null, t.id)} t={t as unknown as Record<string, string | number | null | undefined>} submit="SALVAR ALTERAÇÕES" /></section>

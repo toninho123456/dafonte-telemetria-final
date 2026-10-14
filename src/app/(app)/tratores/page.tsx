@@ -5,17 +5,20 @@ import { prisma } from "@/lib/db";
 import { visibleWhere } from "@/lib/tractors";
 
    import { TractorIcon } from "./TractorIcon";
+import ClaimForm from "./ClaimForm";
 
 export default async function Page({ searchParams }: { searchParams: { q?: string } }) {
   const u = (await auth())!.user, q = searchParams.q?.trim();
   const c = (f: string) => ({ [f]: { contains: q, mode: "insensitive" } });
   const where: Prisma.TractorWhereInput = { ...visibleWhere(u), ...(q ? { OR: [c("name"), c("brand"), c("model"), c("serial"), c("farm"), { device: { deviceId: { contains: q, mode: "insensitive" } } }] as Prisma.TractorWhereInput[] } : {}) };
+  const self = !!(u.tenantId && (await prisma.tenant.findUnique({ where: { id: u.tenantId }, select: { selfService: true } }))?.selfService);
   const list = await prisma.tractor.findMany({ where, include: { device: true }, orderBy: { name: "asc" } });
   return (
     <div>
+      {self && <ClaimForm />}
       <div className="mb-4 flex flex-wrap gap-2">
         <form className="flex-1"><input className="input" name="q" defaultValue={q} placeholder="Pesquisar por nome, marca, modelo, série, fazenda ou dispositivo" /></form>
-        {u.role === "ADMIN" && <Link className="btn" href="/tratores/novo">+ Cadastrar trator</Link>}
+        {u.role === "ADMIN" && !self && <Link className="btn" href="/tratores/novo">+ Cadastrar trator</Link>}
       </div>
       <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(230px,1fr))]">
         {list.map((t) => (
@@ -33,7 +36,7 @@ export default async function Page({ searchParams }: { searchParams: { q?: strin
           </Link>
         ))}
       </div>
-      {!list.length && <p className="text-zinc-400">{q ? "Nenhum trator encontrado." : u.role === "ADMIN" ? "Nenhum trator cadastrado ainda." : "Você ainda não tem tratores autorizados. Peça ao administrador."}</p>}
+      {!list.length && <p className="text-zinc-400">{q ? "Nenhum trator encontrado." : self ? "Você ainda não tem tratores. Use o código de ativação que a Dafonte entregou na compra." : u.role === "ADMIN" ? "Nenhum trator cadastrado ainda." : "Você ainda não tem tratores autorizados. Peça ao administrador."}</p>}
     </div>
   );
 }

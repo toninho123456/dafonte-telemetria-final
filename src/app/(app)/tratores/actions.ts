@@ -13,6 +13,8 @@ async function admin(action = "tractor:write") {
   if (!u.tenantId) throw new Error("Use uma conta de concessionária");
   return { ...u, tenantId: u.tenantId };
 }
+// Conta de cliente ("Criar conta") não cadastra tratores nem dispositivos sozinha: recebe da loja pelo código de ativação.
+const isSelfService = async (tenantId: string) => !!(await prisma.tenant.findUnique({ where: { id: tenantId }, select: { selfService: true } }))?.selfService;
 const back = (path: string, msg: string): never => redirect(`${path}?erro=${encodeURIComponent(msg)}`);
 const uniq = (e: unknown) => e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
 const num = (a: number, b: number) => z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().min(a).max(b).optional());
@@ -22,6 +24,7 @@ const own = async (tenantId: string, id: string) => (await prisma.tractor.findFi
 
 export async function createTractor(fd: FormData) {
   const u = await admin();
+  if (await isSelfService(u.tenantId)) back("/tratores", "Para ter um trator na sua conta, use o código de ativação que a Dafonte entregou na compra.");
   const p = TR.safeParse(Object.fromEntries(fd));
   if (!p.success) back("/tratores/novo", "Confira os campos: nome, marca e modelo são obrigatórios.");
   const devId = String(fd.get("deviceId") || "");
@@ -85,6 +88,7 @@ export async function assignDevice(id: string, fd: FormData) {
 }
 export async function createDevice(fd: FormData) {
   const u = await admin("device:write");
+  if (await isSelfService(u.tenantId)) back("/dispositivos", "O rastreador do seu trator já vem vinculado pela Dafonte. Use o código de ativação em Tratores.");
   const p = z.object({ deviceId: z.string().trim().min(3).max(64).regex(/^[\w.:-]+$/), imei: z.string().trim().regex(/^\d{14,16}$/).optional().or(z.literal("")), tractorId: z.string().optional() }).safeParse(Object.fromEntries(fd));
   if (!p.success) back("/dispositivos", "ID: 3 a 64 caracteres (letras, números, . : _ -). IMEI: 14 a 16 dígitos.");
   const d = p.data!, tid = d.tractorId || undefined;

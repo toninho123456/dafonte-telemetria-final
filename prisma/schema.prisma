@@ -29,6 +29,7 @@ model Tenant {
   locale       String     @default("pt-BR")
   timezone     String     @default("America/Fortaleza")
   active       Boolean    @default(false) // só a plataforma aprova
+  selfService  Boolean    @default(false) // conta de cliente criada por "Criar conta": só recebe tratores por código de ativação
   createdAt    DateTime   @default(now())
   users        User[]
   invites      Invite[]
@@ -55,6 +56,8 @@ model User {
   photoUrl     String?
   role         Role          @default(OPERADOR)
   status       UserStatus    @default(ACTIVE)
+  // true = conta criada pela tela "Criar conta" com senha, e-mail ainda não confirmado (Google ou recuperação de senha confirmam)
+  unverifiedSignup Boolean   @default(false)
   createdAt    DateTime      @default(now())
   resets       PasswordReset[]
   access       TractorAccess[]
@@ -107,6 +110,8 @@ model Tractor {
   operator  String?
   notes     String?
   photoPath String? // arquivo fora de /public; servido só por rota autenticada
+  claimHash String? @unique // SHA-256 do código de ativação que a loja entrega ao comprador
+  claimExpiresAt DateTime?
   createdAt DateTime @default(now())
   device    Device?
   access    TractorAccess[]
