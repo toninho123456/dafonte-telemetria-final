@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body { @apply bg-black text-zinc-100 antialiased; }
+.input { @apply w-full rounded-md border border-zinc-700 bg-black px-3 py-2 outline-none focus:border-[#f2b01e]; }
+.btn { @apply rounded-md bg-[#f2b01e] px-4 py-2.5 font-bold text-black disabled:opacity-50; }
+.btn-o { @apply rounded-md border border-zinc-700 px-4 py-2.5 text-center; }
+
+/* Leaflet + Tailwind: o preflight limita img a 100% e quebra os tiles do mapa */
+.leaflet-container img{max-width:none!important}
