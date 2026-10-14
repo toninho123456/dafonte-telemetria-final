@@ -3,7 +3,9 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { createSelfAccount } from "@/lib/signup";
 import { isLocked, addFail, clearFails } from "@/lib/ratelimit";
 
 const DUMMY = bcrypt.hashSync("tempo-constante", 12); // evita revelar se o e-mail existe pelo tempo de resposta
@@ -38,9 +40,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ account, profile }) {
       if (account?.provider !== "google") return true;
-      // Google só entra se o e-mail for verificado e já existir uma conta ativa no sistema
+      // Google só entra com e-mail verificado. Quem ainda não tem conta ganha uma no primeiro acesso.
       if (!profile?.email || !profile.email_verified) return false;
-      return !!(await loadUser(profile.email));
+      const email = profile.email.toLowerCase();
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (!existing) {
+        try { await createSelfAccount({ email, name: profile.name || email.split("@")[0] }) }
+        catch (e) { if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002")) throw e } // criada em paralelo
+      } else if (existing.unverifiedSignup) {
+        // Alguém criou essa conta com senha sem provar que o e-mail é dele: o dono verdadeiro acabou de provar pelo Google,
+        // então a senha antiga é descartada (ele define outra em "Esqueci minha senha", se quiser).
+        await prisma.user.update({ where: { id: existing.id }, data: { unverifiedSignup: false, passwordHash: null } });
+      }
+      return !!(await loadUser(email));
     },
     async jwt({ token }) { // relê o usuário a cada requisição: bloqueio e mudança de cargo valem na hora
       if (!token.email) return null;
