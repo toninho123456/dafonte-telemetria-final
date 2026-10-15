@@ -1,4 +1,0 @@
-# O Caddy emite o certificado HTTPS sozinho e já repassa o WebSocket (/ws).
-{$DOMAIN} {
-	reverse_proxy app:3000
-}
