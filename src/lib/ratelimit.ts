@@ -17,4 +17,14 @@ export function tooMany(k: string, max: number, windowMs: number) {
   list.push(now); hits.set(k, list);
   if (hits.size > 10_000) hits.clear();
   return list.length > max;
+
+
+// Limite simples por chave (ex.: IP): no máximo `max` usos a cada `windowMs`. Em memória (uma instância).
+const hits = new Map<string, number[]>();
+export function tooMany(k: string, max: number, windowMs: number) {
+  const now = Date.now(), list = (hits.get(k) ?? []).filter((t) => now - t < windowMs);
+  list.push(now); hits.set(k, list);
+  if (hits.size > 10_000) hits.clear();
+  return list.length > max;
+}
 }
