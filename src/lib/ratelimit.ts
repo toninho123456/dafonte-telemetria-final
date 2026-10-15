@@ -18,4 +18,3 @@ export function tooMany(k: string, max: number, windowMs: number) {
   if (hits.size > 10_000) hits.clear();
   return list.length > max;
 }
-}
